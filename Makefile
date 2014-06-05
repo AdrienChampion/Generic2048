@@ -20,5 +20,8 @@ gridRunTest: compile
 run: compile
 	./gridRun
 
+lineCount:
+	git diff --stat `git hash-object -t tree /dev/null` | tail -1
+
 clean:
 	rm *.cmi *.cmx *.o
