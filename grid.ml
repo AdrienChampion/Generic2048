@@ -63,6 +63,14 @@ let printGrid ?p:(prefix="  ") grid = List.iter (
     Printf.printf "|\n"
 ) (toString grid)
 
+(** Checks if the grid contains a none. *)
+let isGridFull grid =
+  not (List.exists (List.exists (function v -> v = None)) grid.rows)
+
+(** Checks if the grid is a winning one. *)
+let isGridWin value grid =
+  List.exists (List.exists (function v -> v = value)) grid.rows
+
 (** Propagation to the left for a grid. *)
 let propagateLeft grid =
   gridFromRows (List.map propagateLeftRow grid.rows)
@@ -97,24 +105,26 @@ let randomValue () =
 (** Inserts a random power of two at a random "none" cell in the input
     grid. *)
 let insertRandom grid =
-  let position = randomPosition () in
-  let value = randomValue () in
-  let rec innerLoop count result row = match (row,count) with
-    | (None :: tail,0) ->
-      ((List.rev result) @ (value :: tail), -1)
-    | (None :: tail,_) ->
-      innerLoop (count - 1) (None :: result) tail
-    | (head :: tail,_) ->
-      innerLoop count (head :: result) tail
-    | ([],_) -> (List.rev result, count)
-  in
-  let rec loop count result = function
-    | [] -> loop count [] grid.rows
-    | row :: tail -> match innerLoop count [] row with
-      | (newRow, -1) -> (List.rev result) @ (newRow :: tail)
-      | (_,newCount) -> loop newCount (row :: result) tail
-  in
-  gridFromRows (loop position [] grid.rows)
+  if isGridFull grid then grid
+  else
+    let position = randomPosition () in
+    let value = randomValue () in
+    let rec innerLoop count result row = match (row,count) with
+      | (None :: tail,0) ->
+	((List.rev result) @ (value :: tail), -1)
+      | (None :: tail,_) ->
+	innerLoop (count - 1) (None :: result) tail
+      | (head :: tail,_) ->
+	innerLoop count (head :: result) tail
+      | ([],_) -> (List.rev result, count)
+    in
+    let rec loop count result = function
+      | [] -> loop count [] grid.rows
+      | row :: tail -> match innerLoop count [] row with
+	| (newRow, -1) -> (List.rev result) @ (newRow :: tail)
+	| (_,newCount) -> loop newCount (row :: result) tail
+    in
+    gridFromRows (loop position [] grid.rows)
 
 (** Creates a new grid with two random tiles. *)
 let randomStartGrid = insertRandom (insertRandom emptyGrid)

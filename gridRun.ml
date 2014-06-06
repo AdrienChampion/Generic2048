@@ -155,7 +155,7 @@ let prompt ifNothing work =
   | head :: tail ->
     let command = keyMap head in
     let () = printf
-      "\027[A\027[K> %s%s\n"
+      "\027[A\027[K> %s%s\n\n"
       (toString command)
       (List.fold_left
 	 (fun string arg -> string ^ " " ^ (String.escaped arg)) "" tail
@@ -189,19 +189,28 @@ let newGame run =
   run randomStartGrid randomStartGrid
 
 (** Starts a game from the input grid. *)
-let rec runGame startingGrid currentGrid =
-  let fallbackFun () = printf "\n" ; runGame startingGrid currentGrid in
+let rec runGame continuation startingGrid currentGrid =
+  let fallbackFun () = printf "\n" ;
+    runGame continuation startingGrid currentGrid
+  in
   let ifSame () = printf "This swipe did nothing.\n"  in
   let rec work () =
     let ifSame () = ifSame () ; work () in
-    let ifDifferent = runGame startingGrid in
-    prompt (fallbackFun) (
+    let ifDifferent = runGame continuation startingGrid in
+    if isGridFull currentGrid && List.for_all
+      (function f -> (f currentGrid) = currentGrid)
+      [propagateLeft;propagateRight;propagateUp;propagateDown]
+    then let () = printf "You lost.\n" in continuation ()
+    else if isGridWin ttfe currentGrid
+    then let () = printf "You won, congratulations.\n" in continuation ()
+    else prompt (fallbackFun) (
       fun command args -> match command with
       | Save -> saveGame args fallbackFun
       | Load -> loadGame args fallbackFun
       | Reset ->
-	printf "Restarting game.\n\n" ; runGame startingGrid startingGrid
-      | New -> newGame runGame
+	printf "Restarting game.\n\n" ;
+	runGame continuation startingGrid startingGrid
+      | New -> newGame (runGame continuation)
       | Help -> printHelp () ; fallbackFun ()
       | Quit -> quit "on user request" 0
       | Unknown -> printError ["unknown command."] ; work ()
@@ -220,7 +229,7 @@ let rec topLoop () =
     | Save -> printError ["no game running, nothing to save."] ; topLoop ()
     | Load -> loadGame args topLoop
     | Reset -> printError ["no game running, nothing to reset."] ; topLoop ()
-    | New -> newGame runGame
+    | New -> newGame (runGame topLoop)
     | Help -> printHelp () ; topLoop()
     | Quit -> quit "on user request" 0
     | Unknown -> printError ["unknown command."] ; topLoop ()
